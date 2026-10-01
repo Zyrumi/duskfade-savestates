@@ -83,11 +83,10 @@ stored next to it.
 
 ## Reporting problems
 
-Open an [issue](https://github.com/Zyrumi/duskfade-savestates/issues) with:
-
-1. Which level you were in, and the level of the state you loaded.
-2. Which key you pressed and what happened (the tool's status line text helps).
-3. The `savestates.log` file from the tool's folder.
+Use [New issue](https://github.com/Zyrumi/duskfade-savestates/issues/new/choose).
+It opens a short form: which level you were in, what you pressed, what
+happened, and a box to drop the `savestates.log` file from the tool's folder
+into. The log is the most useful part.
 
 ## How it works
 

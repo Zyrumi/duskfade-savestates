@@ -1,0 +1,66 @@
+name: Something went wrong
+description: Report a problem with saving, loading or full reset.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! A few quick answers make it much easier to find the problem.
+
+  - type: input
+    id: level
+    attributes:
+      label: Which level were you in?
+      description: The name the tool shows in its Level column, e.g. `School_Rework` or `TickTown`.
+      placeholder: TickTown
+    validations:
+      required: true
+
+  - type: input
+    id: state_level
+    attributes:
+      label: Level of the state you loaded (if different)
+      placeholder: Desert
+
+  - type: dropdown
+    id: action
+    attributes:
+      label: What did you press?
+      options:
+        - F5 (save)
+        - F8 (load)
+        - F9 (full reset)
+        - F6 / F7 (switch slot)
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+      placeholder: I pressed F9 in TickTown and it loaded the level but put me at the door instead of my spot.
+    validations:
+      required: true
+
+  - type: input
+    id: status
+    attributes:
+      label: Status line text
+      description: The message at the bottom of the tool's window, if there was one.
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log file
+      description: Drag `savestates.log` from the tool's folder into this box. If there is no log file, write "none".
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Tool version
+      description: Shown in the tool's title bar.
+      placeholder: 0.1.0

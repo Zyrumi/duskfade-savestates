@@ -47,6 +47,14 @@ INK_DIM = "#9184a3"
 ROSE = "#e07a8a"
 
 VERSION = "0.1.0"
+# After a level change, wait this long once the player exists before warping,
+# so the level's own setup (which resets health etc.) has run. Recordings show
+# nothing moves the player after spawn, so this is short; the guard below
+# catches a level that teleports the player afterwards anyway.
+SETTLE_S = 0.3
+GUARD_S = 1.5          # watch this long after a post-load warp
+GUARD_JUMP = 400.0     # units between two checks that only a teleport covers
+GUARD_REWARPS = 2
 
 ACTIONS = {
     "save": "Save state",
@@ -147,6 +155,8 @@ class App(tk.Tk):
         self.hotkeys: HotkeyThread | None = None
         # Cross-level load in progress: {"slot": name, "state": ..., "seen": t|None, "until": t}
         self.pending: dict | None = None
+        # Post-load watch: {"slot", "until", "last", "pawn", "rewarps"}
+        self.guard: dict | None = None
 
         chimes.ensure_sounds()
         self._apply_theme()
@@ -366,6 +376,7 @@ class App(tk.Tk):
                 slot = self.slots[self.active] if self.slots else None
                 if not slot or not slot.get("state"):
                     raise ue_mem.AttachError("That slot is empty. Save a state first.")
+                self.guard = None
                 if self.pending and self.pending["slot"] == slot["name"]:
                     self.pending = None
                     self._sound("slot")
@@ -405,7 +416,7 @@ class App(tk.Tk):
         fall back to the main-menu save swap."""
         target = slot["state"]["world"]
         info = slot.get("save")
-        base = {"slot": slot["name"], "state": slot["state"], "save": info, "seen": None,
+        base = {"slot": slot["name"], "state": slot["state"], "save": info, "seen": None, "t0": time.time(),
                 "wrong_since": None, "until": time.time() + 900}
         sess = self._get_session()
         exits = []
@@ -441,6 +452,7 @@ class App(tk.Tk):
         changed["character"] = world_state.restore_pawn(sess.g, player["pawn"], snap)
         log.info("full reset %s -> %s: %s, %d usable exits", here, target, changed, len(exits))
         self.pending = {"slot": slot["name"], "state": slot["state"], "save": slot.get("save"), "seen": None,
+                        "t0": time.time(),
                         "wrong_since": None, "until": time.time() + 900, "mode": "door", "exits": exits, "idx": -1,
                         "origin": sess.g.uworld(), "left": False, "world_snap": snap,
                         "gi": sess.g.player()["gi"], "door": savefiles.arrival_door(slot.get("save"), target)}
@@ -512,6 +524,7 @@ class App(tk.Tk):
             w = sess.g.uworld()
             if w != p["origin"]:
                 p["left"] = True
+                self._phase(p, "old level gone")
             arrived = p["left"] and w and world == target
             if p.get("world_snap") and not arrived:
                 # Until the new level exists, keep the snapshot in place so
@@ -532,6 +545,7 @@ class App(tk.Tk):
                 return
             if not w or not world:
                 return  # loading
+            self._phase(p, f"new level up ({world})")
             if world != target:
                 p["wrong_since"] = p["wrong_since"] or now
                 if now - p["wrong_since"] < 8:
@@ -576,7 +590,8 @@ class App(tk.Tk):
         # (which resets health etc.) before writing over it.
         if p["seen"] is None:
             p["seen"] = now
-        elif now - p["seen"] >= 2.0:
+            self._phase(p, "player spawned")
+        elif now - p["seen"] >= SETTLE_S:
             self.pending = None
             if p.get("world_snap"):
                 # The new level may have loaded values the exit's save copied
@@ -590,10 +605,55 @@ class App(tk.Tk):
             slot = next((s for s in self.slots if s["name"] == p["slot"]), {"name": p["slot"], "state": p["state"]})
             try:
                 self._restore(sess, slot)
+                self._phase(p, "warped")
+                self._start_guard(sess, slot)
             except Exception as e:  # noqa: BLE001
                 log.exception("warp after level load failed")
                 self._sound("error")
                 self._set_status(f"Level loaded but the warp failed ({e}). Press load again.", "error")
+
+    def _player_spot(self, sess: state.Session) -> tuple[int, list[float]]:
+        pl = sess.g.player()
+        root = pl["root"]
+        return pl["pawn"], sess.g.read_value(root, sess.g.find_field(root, "RelativeLocation"))
+
+    def _start_guard(self, sess: state.Session, slot: dict):
+        pawn, loc = self._player_spot(sess)
+        self.guard = {"slot": slot, "until": time.time() + GUARD_S, "last": loc, "pawn": pawn, "rewarps": 0}
+
+    def _check_guard(self):
+        """Right after a post-load warp: if the level teleports the player
+        (spawn logic running late), warp them back."""
+        gd = self.guard
+        if not gd or time.time() > gd["until"]:
+            self.guard = None
+            return
+        try:
+            sess = self._get_session()
+            pawn, loc = self._player_spot(sess)
+        except Exception:  # noqa: BLE001
+            return
+        jump = sum((a - b) ** 2 for a, b in zip(loc, gd["last"])) ** 0.5
+        gd["last"] = loc
+        if pawn != gd["pawn"] or jump > GUARD_JUMP:
+            if gd["rewarps"] >= GUARD_REWARPS:
+                self.guard = None
+                return
+            gd["rewarps"] += 1
+            log.info("guard: player moved %.0f units (pawn changed: %s), warping again", jump, pawn != gd["pawn"])
+            try:
+                self._restore(sess, gd["slot"])
+                gd["pawn"], gd["last"] = self._player_spot(sess)
+            except Exception:  # noqa: BLE001
+                log.exception("guard re-warp failed")
+
+    @staticmethod
+    def _phase(p: dict, name: str) -> None:
+        """Logs each loading phase once, with time since the key press."""
+        done = p.setdefault("phases", set())
+        if name not in done:
+            done.add(name)
+            log.info("phase +%.2fs %s", time.time() - p.get("t0", time.time()), name)
 
     def _sound(self, name: str):
         if self.cfg.get("sound", True):
@@ -606,7 +666,10 @@ class App(tk.Tk):
         except queue.Empty:
             pass
         now = time.monotonic()
-        interval = 0.02 if self.pending and self.pending.get("world_snap") else 0.3
+        if self.guard and now - getattr(self, "_last_guard_check", 0) > 0.05:
+            self._last_guard_check = now
+            self._check_guard()
+        interval = 0.02 if self.pending and self.pending.get("mode") == "door" else 0.3
         if self.pending and now - getattr(self, "_last_pending_check", 0) > interval:
             self._last_pending_check = now
             self._check_pending()
