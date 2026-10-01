@@ -1,0 +1,22 @@
+# Runtime state created next to the tool (per machine, never shipped)
+states.json
+savestate_config.json
+saves/
+sounds/
+Backups/
+savestates.log*
+
+# Dev script output
+dev/*.json
+dev/*.log
+dev/*.txt
+dev/*.pkl
+
+# Build output
+build/
+dist/
+release/
+
+__pycache__/
+*.pyc
+*.tmp
