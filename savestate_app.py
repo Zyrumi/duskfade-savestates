@@ -207,8 +207,9 @@ class App(tk.Tk):
 
         bar = tk.Frame(self, bg=PANEL, padx=10, pady=8)
         bar.pack(fill="x", side="bottom")
-        for text, cmd, style, w in (("Save state", lambda: self._do("save"), "primary", 110),
-                                    ("Load state", lambda: self._do("load"), "primary", 110),
+        for text, cmd, style, w in (("Save", lambda: self._do("save"), "primary", 80),
+                                    ("Load", lambda: self._do("load"), "primary", 80),
+                                    ("Full reset", lambda: self._do("reset"), "primary", 100),
                                     ("New slot", self._new_slot, "secondary", 90),
                                     ("Rename", self._rename, "secondary", 80),
                                     ("Delete", self._delete, "secondary", 80)):
@@ -241,7 +242,8 @@ class App(tk.Tk):
             self.tree.selection_set(str(self.active))
             self.tree.see(str(self.active))
         k = self.cfg["keys"]
-        self.keys_label.configure(text=f"{k['save']} save   {k['load']} load   {k['prev']}/{k['next']} switch slot")
+        self.keys_label.configure(text=f"{k['save']} save   {k['load']} load   {k['reset']} full reset   "
+                                       f"{k['prev']}/{k['next']} slot")
 
     def _on_select(self, _e):
         sel = self.tree.selection()
