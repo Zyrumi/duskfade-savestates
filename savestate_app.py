@@ -137,8 +137,7 @@ class App(tk.Tk):
             self.iconbitmap(str(resource("savestates.ico")))
         except tk.TclError:
             pass
-        self.geometry("720x440")
-        self.minsize(560, 320)
+        self.geometry("740x440")
         self.cfg = load_json(CONFIG_FILE, {})
         self.cfg["keys"] = {**DEFAULT_KEYS, **self.cfg.get("keys", {})}
         self.slots: list[dict] = load_json(STATES_FILE, [])
@@ -180,6 +179,9 @@ class App(tk.Tk):
         self.option_add("*TCombobox*Listbox.background", PANEL_RAISED)
         self.option_add("*TCombobox*Listbox.foreground", INK)
         style.configure("TEntry", fieldbackground=PANEL_RAISED, foreground=INK, insertcolor=INK, bordercolor=EDGE)
+        style.configure("Vertical.TScrollbar", background=PANEL_RAISED, troughcolor=PANEL, bordercolor=EDGE,
+                        arrowcolor=TEAL, lightcolor=PANEL_RAISED, darkcolor=PANEL_RAISED)
+        style.map("Vertical.TScrollbar", background=[("active", EDGE)])
 
     def _build(self):
         head = ttk.Frame(self, padding=(14, 12, 14, 4))
@@ -188,23 +190,8 @@ class App(tk.Tk):
         self.keys_label = ttk.Label(head, style="Dim.TLabel")
         self.keys_label.pack(side="right")
 
-        body = ttk.Frame(self, padding=(14, 4))
-        body.pack(fill="both", expand=True)
-        self.tree = ttk.Treeview(body, columns=self.COLUMNS, show="headings", selectmode="browse")
-        heads = {"slot": "Slot", "level": "Level", "health": "Health", "mana": "Mana",
-                 "potions": "Potions", "saved": "Saved"}
-        widths = {"slot": 170, "level": 150, "health": 70, "mana": 60, "potions": 65, "saved": 80}
-        for col in self.COLUMNS:
-            self.tree.heading(col, text=heads[col])
-            self.tree.column(col, width=widths[col], anchor="w" if col in ("slot", "level") else "center")
-        self.tree.pack(fill="both", expand=True)
-        self.tree.bind("<<TreeviewSelect>>", self._on_select)
-        self.tree.bind("<Double-1>", lambda _e: self._rename())
-
-        # Status line: symbol + text, so state never relies on colour alone.
-        self.status = tk.Label(self, anchor="w", bg=DUSK, fg=INK_MID, font=("Segoe UI", 10), padx=14, pady=4)
-        self.status.pack(fill="x")
-
+        # Pack the fixed-height parts (buttons, status) before the list, so
+        # when the window shrinks it's the list that gives up space.
         bar = tk.Frame(self, bg=PANEL, padx=10, pady=8)
         bar.pack(fill="x", side="bottom")
         for text, cmd, style, w in (("Save", lambda: self._do("save"), "primary", 80),
@@ -215,6 +202,33 @@ class App(tk.Tk):
                                     ("Delete", self._delete, "secondary", 80)):
             AngledButton(bar, text, command=cmd, style=style, width=w, height=30, bg=PANEL).pack(side="left", padx=4)
         AngledButton(bar, "Settings", command=self._hotkey_dialog, width=90, height=30, bg=PANEL).pack(side="right", padx=4)
+
+        # Status line: symbol + text, so state never relies on colour alone.
+        self.status = tk.Label(self, anchor="w", justify="left", bg=DUSK, fg=INK_MID, font=("Segoe UI", 10),
+                               padx=14, pady=4)
+        self.status.pack(fill="x", side="bottom")
+        self.status.bind("<Configure>", lambda e: self.status.configure(wraplength=max(200, e.width - 28)))
+
+        body = ttk.Frame(self, padding=(14, 4))
+        body.pack(fill="both", expand=True)
+        self.tree = ttk.Treeview(body, columns=self.COLUMNS, show="headings", selectmode="browse", height=3)
+        heads = {"slot": "Slot", "level": "Level", "health": "Health", "mana": "Mana",
+                 "potions": "Potions", "saved": "Saved"}
+        widths = {"slot": 170, "level": 150, "health": 70, "mana": 60, "potions": 65, "saved": 80}
+        for col in self.COLUMNS:
+            self.tree.heading(col, text=heads[col])
+            self.tree.column(col, width=widths[col], minwidth=50,
+                             anchor="w" if col in ("slot", "level") else "center")
+        scroll = ttk.Scrollbar(body, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scroll.set)
+        scroll.pack(side="right", fill="y")
+        self.tree.pack(fill="both", expand=True)
+        self.tree.bind("<<TreeviewSelect>>", self._on_select)
+        self.tree.bind("<Double-1>", lambda _e: self._rename())
+
+        # Never narrower than the button row; tall enough for a few slots.
+        self.update_idletasks()
+        self.minsize(bar.winfo_reqwidth(), head.winfo_reqheight() + bar.winfo_reqheight() + 150)
 
     def _set_status(self, text: str, kind: str = "info"):
         log.log(logging.WARNING if kind in ("warn", "error") else logging.INFO, "status[%s] %s", kind, text)
