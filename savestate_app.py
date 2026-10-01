@@ -46,7 +46,7 @@ INK_MID = "#c7bcd4"
 INK_DIM = "#9184a3"
 ROSE = "#e07a8a"
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 # After a level change, wait this long once the player exists before warping,
 # so the level's own setup (which resets health etc.) has run. Recordings show
 # nothing moves the player after spawn, so this is short; the guard below
