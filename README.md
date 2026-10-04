@@ -84,6 +84,10 @@ is in front:
 | **Ctrl+F11** | Draw range: 25k, near, everything |
 | **Shift+F11** | Trail + "under you" line on / off |
 
+The info box in the top-left corner (level name, what's under you) can be
+switched off under **Settings** in the tool's window; key help and warnings
+still show briefly when needed.
+
 The first visit to a level takes a few seconds to read its collision; after
 that it's cached and shows instantly.
 
