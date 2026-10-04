@@ -22,6 +22,12 @@ is running. Windows SmartScreen may warn about an unknown publisher; choose
 Everything the tool creates (slots, settings, kept saves, backups, logs,
 collision cache) is stored next to the exe.
 
+**Updates:** from 0.2.1 on, the tool checks for a newer version when it starts
+and shows an **Update to vX** button in its bottom bar. One click downloads
+it, checks it against the release's published checksum, and restarts into the
+new version; your slots and settings stay. (0.2.0 has no updater: download
+0.2.1 by hand once.)
+
 ## The watermark
 
 When the tool is open, every HUD the game builds shows the checkerboard dial,
