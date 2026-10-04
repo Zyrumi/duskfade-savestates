@@ -25,7 +25,9 @@ collision cache) is stored next to the exe.
 ## The watermark
 
 When the tool is open, every HUD the game builds shows the checkerboard dial,
-starting from your next zone load. **Save (F5) and load (F8) only work while
+starting from your next zone load. Dialogue boxes get a darkened checkerboard
+background too, because the game hides the whole HUD while one is open (for
+example during the time echo flight glitch). **Save (F5) and load (F8) only work while
 the checkerboard is actually on screen** (HUD visible, not in a cutscene or
 menu), and the overlay only draws then. F9 and loads from another level work
 right away, because they reload a level, which builds a marked HUD; the warp
